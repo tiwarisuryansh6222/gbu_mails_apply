@@ -148,9 +148,13 @@ function buildEmailBody(job, userName) {
   const lines = [
     greeting,
     '',
-    `I am writing to express my interest in the ${role} position at ${company}. I came across this opportunity through our college placement cell and would like to submit my application for your consideration.`,
+    `I am writing to express my strong interest in the ${role} position at ${company}. I would be thrilled to submit my application for your consideration.`,
     '',
-    `Please find my resume/CV attached for your review. I am eager to contribute to ${company} and believe my skills and background align well with the requirements of this role.`,
+    `I have been closely following ${company}'s work and am deeply inspired by your approach and impact in the industry. As a dedicated learner with a passion for problem-solving, I am very enthusiastic about the opportunity to bring my skills to your team.`,
+    '',
+    `I am highly adaptable, eager to take on new challenges, and driven to deliver high-quality results. I am confident that my technical background and eagerness to learn make me a strong fit for this role.`,
+    '',
+    `Please find my resume/CV attached for your review. I would welcome the opportunity to discuss how my background, skills, and enthusiasm can contribute to ${company}'s continued success.`,
     '',
   ];
 
@@ -160,7 +164,7 @@ function buildEmailBody(job, userName) {
   }
 
   lines.push(
-    'I would welcome the opportunity to discuss how I can contribute to your team. Please feel free to reach out at your convenience.',
+    'Please feel free to reach out to me at your earliest convenience.',
     '',
     'Thank you for your time and consideration.',
     '',
