@@ -146,6 +146,10 @@ app.get('/api/health', (_req, res) => {
 
 // ── Start ───────────────────────────────────────────────────────────────────
 
-app.listen(PORT, () => {
-  console.log(`✔ Placement Filter server running on http://localhost:${PORT}`);
-});
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, () => {
+    console.log(`✔ Placement Filter server running on http://localhost:${PORT}`);
+  });
+}
+
+export default app;
