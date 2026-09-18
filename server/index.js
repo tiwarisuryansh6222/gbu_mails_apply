@@ -40,7 +40,7 @@ RULES:
 - Never fail. Always return at least an empty array [].
 - Do NOT wrap the JSON in markdown code fences or add any text outside the array.`;
 
-const RETRY_PROMPT = `Your previous response was not valid JSON. You MUST return ONLY a valid JSON array with no surrounding text, markdown, or explanation. Return the corrected JSON array now.`;
+const RETRY_PROMPT = 'Your previous response was not valid JSON. You MUST return ONLY a valid JSON array with no surrounding text, markdown, or explanation. Return the corrected JSON array now.';
 
 // ── Helper: call Groq ────────────────────────────────────────────────────
 
@@ -49,20 +49,20 @@ async function callGroq(messages) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': \`Bearer \${process.env.GROQ_API_KEY}\`,
+      'Authorization': 'Bearer ' + process.env.GROQ_API_KEY,
     },
     body: JSON.stringify({
       model: 'llama-3.3-70b-versatile',
       messages,
       temperature: 0.1,
       max_tokens: 8192,
-      response_format: { type: "json_object" },
+      response_format: { type: 'json_object' },
     }),
   });
 
   if (!res.ok) {
     const body = await res.text();
-    const error = new Error(\`Groq API error \${res.status}\`);
+    const error = new Error('Groq API error ' + res.status);
     error.status = res.status;
     error.body = body;
     throw error;
@@ -75,17 +75,15 @@ async function callGroq(messages) {
 // ── Helper: try to parse JSON from model output ─────────────────────────────
 
 function tryParseJSON(text) {
-  // Strip markdown fences if the model added them despite instructions
   let cleaned = text.trim();
-  if (cleaned.startsWith('\`\`\`')) {
-    cleaned = cleaned.replace(/^\`\`\`(?:json)?\\n?/, '').replace(/\\n?\`\`\`$/, '');
+  if (cleaned.startsWith('```')) {
+    cleaned = cleaned.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
   }
   const parsed = JSON.parse(cleaned);
-  
+
   // Groq with response_format may wrap array in an object like { "results": [...] }
   if (Array.isArray(parsed)) return parsed;
   if (typeof parsed === 'object' && parsed !== null) {
-    // Find the first array value in the object
     const firstArray = Object.values(parsed).find(v => Array.isArray(v));
     if (firstArray) return firstArray;
   }
@@ -111,14 +109,12 @@ app.post('/api/parse', async (req, res) => {
   ];
 
   try {
-    // First attempt
     let raw = await callGroq(messages);
     let parsed;
 
     try {
       parsed = tryParseJSON(raw);
     } catch {
-      // Retry once with stricter instruction
       console.warn('First Groq response was not valid JSON. Retrying…');
       messages.push({ role: 'assistant', content: raw });
       messages.push({ role: 'user', content: RETRY_PROMPT });
@@ -141,7 +137,7 @@ app.post('/api/parse', async (req, res) => {
       return res.status(429).json({ error: 'Groq rate limit exceeded. Please wait a moment and try again.' });
     }
     if (err.status) {
-      return res.status(502).json({ error: \`Groq API returned status \${err.status}: \${err.body}\` });
+      return res.status(502).json({ error: 'Groq API returned status ' + err.status + ': ' + err.body });
     }
 
     return res.status(500).json({ error: 'Failed to parse the email. The AI response was not valid JSON even after retry.' });
@@ -158,7 +154,7 @@ app.get('/api/health', (_req, res) => {
 
 if (process.env.NODE_ENV !== 'production') {
   app.listen(PORT, () => {
-    console.log(\`✔ Placement Filter server running on http://localhost:\${PORT}\`);
+    console.log('✔ Placement Filter server running on http://localhost:' + PORT);
   });
 }
 
