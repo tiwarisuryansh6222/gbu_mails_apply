@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Header from '../components/Header';
 import { db } from '../firebase';
-import { collection, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
-import { ArrowLeft, CheckCircle2, Clock } from 'lucide-react';
+import { collection, query, where, getDocs, doc, updateDoc, addDoc } from 'firebase/firestore';
+import { ArrowLeft, CheckCircle2, Clock, Plus, X } from 'lucide-react';
 
 const STATUS_STAGES = [
   { id: 'applied', label: 'Applied' },
@@ -19,6 +19,12 @@ export default function Dashboard({ theme, onToggleTheme }) {
   const navigate = useNavigate();
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Modal State
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [newCompany, setNewCompany] = useState('');
+  const [newRole, setNewRole] = useState('');
+  const [adding, setAdding] = useState(false);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -65,6 +71,43 @@ export default function Dashboard({ theme, onToggleTheme }) {
     }
   };
 
+  const handleAddApplication = async (e) => {
+    e.preventDefault();
+    if (!newCompany.trim() || !newRole.trim()) return;
+    
+    setAdding(true);
+    try {
+      const newApp = {
+        userId: currentUser.uid,
+        company: newCompany.trim(),
+        role: newRole.trim(),
+        appliedAt: new Date().toISOString(),
+        statuses: {
+          applied: true,
+          test_given: false,
+          interview_round: false,
+          hr_round: false,
+          placed: false
+        }
+      };
+
+      const docRef = await addDoc(collection(db, 'applications'), newApp);
+      
+      // Update local state immediately
+      setApplications(prev => [{ id: docRef.id, ...newApp }, ...prev]);
+      
+      // Reset and close modal
+      setNewCompany('');
+      setNewRole('');
+      setIsAddModalOpen(false);
+    } catch (error) {
+      console.error("Error adding application: ", error);
+      alert("Failed to add application");
+    } finally {
+      setAdding(false);
+    }
+  };
+
   const handleLogout = async () => {
     await logoutUser();
     navigate('/');
@@ -74,7 +117,7 @@ export default function Dashboard({ theme, onToggleTheme }) {
     <div className="app-container" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <Header theme={theme} onToggleTheme={onToggleTheme} />
       
-      <div style={{ padding: '2rem', flex: 1 }}>
+      <div style={{ padding: '2rem', flex: 1, position: 'relative' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
           <button className="secondary-btn" onClick={() => navigate('/')} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <ArrowLeft size={16} /> Back to Home
@@ -89,7 +132,12 @@ export default function Dashboard({ theme, onToggleTheme }) {
           </div>
         </div>
 
-        <h1 style={{ marginBottom: '2rem', color: 'var(--text-primary)' }}>My Applications</h1>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+          <h1 style={{ margin: 0, color: 'var(--text-primary)' }}>My Applications</h1>
+          <button className="primary-btn" onClick={() => setIsAddModalOpen(true)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Plus size={18} /> Add Application
+          </button>
+        </div>
 
         {loading ? (
           <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>Loading your dashboard...</div>
@@ -146,6 +194,55 @@ export default function Dashboard({ theme, onToggleTheme }) {
           </div>
         )}
       </div>
+
+      {/* Manual Add Modal */}
+      {isAddModalOpen && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div className="glass-panel" style={{ padding: '2rem', width: '100%', maxWidth: '400px', position: 'relative' }}>
+            <button 
+              onClick={() => setIsAddModalOpen(false)}
+              style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
+            >
+              <X size={24} />
+            </button>
+            <h2 style={{ marginTop: 0, marginBottom: '1.5rem', color: 'var(--text-primary)' }}>Manual Add</h2>
+            
+            <form onSubmit={handleAddApplication} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Company Name</label>
+                <input 
+                  type="text" 
+                  value={newCompany} 
+                  onChange={(e) => setNewCompany(e.target.value)} 
+                  placeholder="e.g., Google" 
+                  required
+                  style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Role / Position</label>
+                <input 
+                  type="text" 
+                  value={newRole} 
+                  onChange={(e) => setNewRole(e.target.value)} 
+                  placeholder="e.g., Software Engineer" 
+                  required
+                  style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
+                />
+              </div>
+              
+              <button type="submit" className="primary-btn" disabled={adding} style={{ marginTop: '1rem' }}>
+                {adding ? 'Saving...' : 'Save Application'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
