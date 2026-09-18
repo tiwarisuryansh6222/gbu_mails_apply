@@ -1,4 +1,8 @@
 import { useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import { db } from '../firebase';
+import { collection, addDoc } from 'firebase/firestore';
+import { Bookmark, Check } from 'lucide-react';
 
 function WorkModeBadge({ mode }) {
   return <span className={`badge badge-${mode}`}>{mode}</span>;
@@ -23,6 +27,40 @@ function hasApplyEmail(job) {
 
 export default function JobCard({ job, style, onDraftMail }) {
   const [expanded, setExpanded] = useState(false);
+  const { currentUser } = useAuth();
+  const [tracking, setTracking] = useState(false);
+  const [tracked, setTracked] = useState(false);
+
+  const handleTrack = async (e) => {
+    e.stopPropagation();
+    if (!currentUser) {
+      alert("Please login to track applications.");
+      return;
+    }
+    setTracking(true);
+    try {
+      await addDoc(collection(db, 'applications'), {
+        userId: currentUser.uid,
+        company: job.company || 'Unknown',
+        role: job.role || 'Unknown',
+        appliedAt: new Date().toISOString(),
+        statuses: {
+          applied: true,
+          test_given: false,
+          interview_round: false,
+          hr_round: false,
+          placed: false
+        },
+        jobDetails: job // keeping a reference of other details
+      });
+      setTracked(true);
+    } catch (error) {
+      console.error("Error saving tracking info: ", error);
+      alert("Failed to track application.");
+    } finally {
+      setTracking(false);
+    }
+  };
 
   return (
     <article
@@ -90,18 +128,33 @@ export default function JobCard({ job, style, onDraftMail }) {
         </div>
       )}
 
-      {/* Draft Mail button */}
-      {hasApplyEmail(job) && (
+      <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem', flexWrap: 'wrap' }}>
         <button
-          className="btn btn-draft-mail"
-          onClick={(e) => {
-            e.stopPropagation();
-            onDraftMail(job);
-          }}
+          className={`primary-btn ${tracked ? 'tracked' : ''}`}
+          onClick={handleTrack}
+          disabled={tracking || tracked}
+          style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', background: tracked ? 'var(--success-color, #22c55e)' : '' }}
         >
-          ✉️ Draft Application Mail
+          {tracked ? (
+            <><Check size={16} /> Tracked in Dashboard</>
+          ) : (
+            <><Bookmark size={16} /> {tracking ? 'Tracking...' : 'Track Application'}</>
+          )}
         </button>
-      )}
+
+        {hasApplyEmail(job) && (
+          <button
+            className="btn btn-draft-mail"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDraftMail(job);
+            }}
+            style={{ flex: 1 }}
+          >
+            ✉️ Draft Application Mail
+          </button>
+        )}
+      </div>
 
       {expanded && job.raw_snippet && (
         <div className="job-card-snippet">
