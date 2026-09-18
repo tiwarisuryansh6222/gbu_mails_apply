@@ -1,7 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
 
 const app = express();
 const PORT = 3001;
@@ -9,47 +8,89 @@ const PORT = 3001;
 app.use(cors({ origin: 'http://localhost:5173' }));
 app.use(express.json({ limit: '1mb' }));
 
-// ── Gemini Configuration ──────────────────────────────────────────────────
-
-// We can define a schema for the exact JSON output we want. Gemini respects this perfectly.
-const responseSchema = {
-  type: SchemaType.ARRAY,
-  description: "List of job or internship postings extracted from the email.",
-  items: {
-    type: SchemaType.OBJECT,
-    properties: {
-      company: { type: SchemaType.STRING },
-      role: { type: SchemaType.STRING },
-      work_mode: { type: SchemaType.STRING, description: "remote, hybrid, onsite, or unspecified" },
-      eligible_batches: { 
-        type: SchemaType.ARRAY, 
-        items: { type: SchemaType.INTEGER }, 
-        description: "List of graduation years like [2026, 2027]" 
-      },
-      employment_type: { type: SchemaType.STRING, description: "fresher, internship, experienced, or unspecified" },
-      ctc_or_stipend: { type: SchemaType.STRING },
-      location: { type: SchemaType.STRING },
-      deadline: { type: SchemaType.STRING },
-      apply_link: { type: SchemaType.STRING },
-      apply_email: { type: SchemaType.STRING, description: "Email address to send CV/resume to" },
-      raw_snippet: { type: SchemaType.STRING, description: "The original text chunk this posting was extracted from" },
-    },
-    required: ["company", "role", "work_mode", "eligible_batches", "employment_type", "ctc_or_stipend", "location", "deadline", "apply_link", "apply_email", "raw_snippet"],
-  }
-};
+// ── Groq extraction prompt ──────────────────────────────────────────────────
 
 const SYSTEM_PROMPT = `You are a structured data extractor for college placement cell emails.
 
 TASK:
 Read the raw email text provided by the user. Extract EVERY distinct job or internship posting mentioned.
 
+OUTPUT FORMAT:
+Return ONLY a valid JSON array. No prose, no markdown fences, no explanation — just the JSON array.
+
+Each object in the array must have these exact fields:
+- "company" (string)
+- "role" (string)
+- "work_mode" — one of: "remote", "hybrid", "onsite", "unspecified"
+- "eligible_batches" — array of integer years, e.g. [2026, 2027]. Use [] if not mentioned.
+- "employment_type" — one of: "fresher", "internship", "experienced", "unspecified"
+- "ctc_or_stipend" (string) — raw as mentioned, or "not mentioned"
+- "location" (string) — or "not mentioned"
+- "deadline" (string) — or "not mentioned"
+- "apply_link" (string) — a web URL to apply, or "not mentioned"
+- "apply_email" (string) — an email address to send CV/resume to (e.g. hr@company.com), or "not mentioned". Look for phrases like "send your CV to", "mail your resume at", "apply via email", "drop your resume at", etc.
+- "raw_snippet" (string) — the original text chunk this posting was extracted from, for verification
+
 RULES:
 - If a field is ambiguous or missing, use "unspecified" for enum fields and "not mentioned" for string fields.
+- Normalize work_mode and employment_type to the allowed values listed above (case-insensitive match).
 - If the email lists multiple roles under one company, create a SEPARATE object for each role.
-- IMPORTANT: Do NOT create duplicate entries.
-- If an email address is mentioned alongside a job posting (for sending CVs/resumes), extract it into "apply_email". Do NOT put email addresses in "apply_link".
-- Never fail. Always return at least an empty array [].`;
+- IMPORTANT: Do NOT create duplicate entries. If the same company + role combination appears multiple times in the email (e.g. repeated in headers, footers, or forwarded copies), output it only ONCE.
+- If an email address is mentioned alongside a job posting (for sending CVs/resumes), extract it into "apply_email". Do NOT put email addresses in "apply_link" — that field is only for web URLs.
+- Never fail. Always return at least an empty array [].
+- Do NOT wrap the JSON in markdown code fences or add any text outside the array.`;
 
+const RETRY_PROMPT = `Your previous response was not valid JSON. You MUST return ONLY a valid JSON array with no surrounding text, markdown, or explanation. Return the corrected JSON array now.`;
+
+// ── Helper: call Groq ────────────────────────────────────────────────────
+
+async function callGroq(messages) {
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': \`Bearer \${process.env.GROQ_API_KEY}\`,
+    },
+    body: JSON.stringify({
+      model: 'llama-3.3-70b-versatile',
+      messages,
+      temperature: 0.1,
+      max_tokens: 8192,
+      response_format: { type: "json_object" },
+    }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    const error = new Error(\`Groq API error \${res.status}\`);
+    error.status = res.status;
+    error.body = body;
+    throw error;
+  }
+
+  const data = await res.json();
+  return data.choices?.[0]?.message?.content ?? '';
+}
+
+// ── Helper: try to parse JSON from model output ─────────────────────────────
+
+function tryParseJSON(text) {
+  // Strip markdown fences if the model added them despite instructions
+  let cleaned = text.trim();
+  if (cleaned.startsWith('\`\`\`')) {
+    cleaned = cleaned.replace(/^\`\`\`(?:json)?\\n?/, '').replace(/\\n?\`\`\`$/, '');
+  }
+  const parsed = JSON.parse(cleaned);
+  
+  // Groq with response_format may wrap array in an object like { "results": [...] }
+  if (Array.isArray(parsed)) return parsed;
+  if (typeof parsed === 'object' && parsed !== null) {
+    // Find the first array value in the object
+    const firstArray = Object.values(parsed).find(v => Array.isArray(v));
+    if (firstArray) return firstArray;
+  }
+  return parsed;
+}
 
 // ── POST /api/parse ─────────────────────────────────────────────────────────
 
@@ -60,29 +101,50 @@ app.post('/api/parse', async (req, res) => {
     return res.status(400).json({ error: 'rawText is required and must be a non-empty string.' });
   }
 
-  if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'your_gemini_api_key_here') {
-    return res.status(500).json({ error: 'Gemini API key is not configured. Add it to server/.env and Vercel.' });
+  if (!process.env.GROQ_API_KEY || process.env.GROQ_API_KEY === 'your_groq_api_key_here') {
+    return res.status(500).json({ error: 'Groq API key is not configured. Add GROQ_API_KEY to server/.env' });
   }
 
-  try {
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-flash-latest',
-      systemInstruction: SYSTEM_PROMPT,
-      generationConfig: {
-        responseMimeType: "application/json",
-        responseSchema: responseSchema,
-      }
-    });
+  const messages = [
+    { role: 'system', content: SYSTEM_PROMPT },
+    { role: 'user', content: rawText },
+  ];
 
-    const result = await model.generateContent(rawText);
-    const responseText = result.response.text();
-    const parsed = JSON.parse(responseText);
+  try {
+    // First attempt
+    let raw = await callGroq(messages);
+    let parsed;
+
+    try {
+      parsed = tryParseJSON(raw);
+    } catch {
+      // Retry once with stricter instruction
+      console.warn('First Groq response was not valid JSON. Retrying…');
+      messages.push({ role: 'assistant', content: raw });
+      messages.push({ role: 'user', content: RETRY_PROMPT });
+      raw = await callGroq(messages);
+      parsed = tryParseJSON(raw);
+    }
+
+    if (!Array.isArray(parsed)) {
+      return res.status(502).json({ error: 'Groq returned valid JSON but it was not an array.' });
+    }
 
     return res.json({ results: parsed });
   } catch (err) {
     console.error('Parse error:', err);
-    return res.status(500).json({ error: 'Failed to parse the email with Gemini. ' + err.message });
+
+    if (err.status === 401) {
+      return res.status(401).json({ error: 'Invalid Groq API key.' });
+    }
+    if (err.status === 429) {
+      return res.status(429).json({ error: 'Groq rate limit exceeded. Please wait a moment and try again.' });
+    }
+    if (err.status) {
+      return res.status(502).json({ error: \`Groq API returned status \${err.status}: \${err.body}\` });
+    }
+
+    return res.status(500).json({ error: 'Failed to parse the email. The AI response was not valid JSON even after retry.' });
   }
 });
 
@@ -96,7 +158,7 @@ app.get('/api/health', (_req, res) => {
 
 if (process.env.NODE_ENV !== 'production') {
   app.listen(PORT, () => {
-    console.log(`✔ Placement Filter server running on http://localhost:${PORT}`);
+    console.log(\`✔ Placement Filter server running on http://localhost:\${PORT}\`);
   });
 }
 
