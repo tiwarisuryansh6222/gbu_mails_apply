@@ -181,7 +181,7 @@ export default function Dashboard({ theme, onToggleTheme }) {
                           {isChecked ? (
                             <CheckCircle2 size={20} color="var(--primary-color)" />
                           ) : (
-                            <div style={{ width: '20px', height: '20px', borderRadius: '50%', border: '2px solid var(--border-color)' }} />
+                            <div style={{ width: '20px', height: '20px', borderRadius: '50%', border: '2px solid var(--border-medium)' }} />
                           )}
                         </div>
                         <span style={{ fontSize: '0.9rem', userSelect: 'none' }}>{stage.label}</span>
