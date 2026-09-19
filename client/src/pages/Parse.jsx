@@ -110,14 +110,19 @@ export default function Parse({ theme, onToggleTheme }) {
 
   return (
     <div className="app-container">
+      {/* Animated background */}
+      <div className="animated-bg">
+        <div className="orb orb-1" />
+        <div className="orb orb-2" />
+        <div className="orb orb-3" />
+      </div>
+
       {loading && <Spinner />}
       <Header theme={theme} onToggleTheme={onToggleTheme} />
 
-      <div style={{ padding: '0 2rem', marginTop: '1rem' }}>
-        <button className="secondary-btn" onClick={() => navigate('/')} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-          <ArrowLeft size={16} /> Back to Home
-        </button>
-      </div>
+      <button className="secondary-btn page-back-btn" onClick={() => navigate('/')}>
+        <ArrowLeft size={16} /> Back to Home
+      </button>
 
       {error && (
         <ErrorBanner

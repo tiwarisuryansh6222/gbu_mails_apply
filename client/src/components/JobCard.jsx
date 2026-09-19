@@ -128,17 +128,16 @@ export default function JobCard({ job, style, onDraftMail }) {
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem', flexWrap: 'wrap' }}>
+      <div className="job-card-actions">
         <button
           className={`primary-btn ${tracked ? 'tracked' : ''}`}
           onClick={handleTrack}
           disabled={tracking || tracked}
-          style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', background: tracked ? 'var(--success-color, #22c55e)' : '' }}
         >
           {tracked ? (
-            <><Check size={16} /> Tracked in Dashboard</>
+            <><Check size={16} /> Tracked</>
           ) : (
-            <><Bookmark size={16} /> {tracking ? 'Tracking...' : 'Track Application'}</>
+            <><Bookmark size={16} /> {tracking ? 'Tracking…' : 'Track'}</>
           )}
         </button>
 
@@ -149,9 +148,8 @@ export default function JobCard({ job, style, onDraftMail }) {
               e.stopPropagation();
               onDraftMail(job);
             }}
-            style={{ flex: 1 }}
           >
-            ✉️ Draft Application Mail
+            ✉️ Draft Mail
           </button>
         )}
       </div>

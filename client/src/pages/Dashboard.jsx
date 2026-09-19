@@ -1,15 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Header from '../components/Header';
 import { db } from '../firebase';
 import { collection, query, where, getDocs, doc, updateDoc, addDoc } from 'firebase/firestore';
-import { ArrowLeft, CheckCircle2, Clock, Plus, X } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Clock, Plus, X, LogOut } from 'lucide-react';
 
 const STATUS_STAGES = [
   { id: 'applied', label: 'Applied' },
   { id: 'test_given', label: 'Test Given' },
-  { id: 'interview_round', label: 'Interview Round' },
+  { id: 'interview_round', label: 'Interview' },
   { id: 'hr_round', label: 'HR Round' },
   { id: 'placed', label: 'Placed' }
 ];
@@ -53,6 +53,17 @@ export default function Dashboard({ theme, onToggleTheme }) {
 
     fetchApplications();
   }, [currentUser]);
+
+  // Stats
+  const stats = useMemo(() => {
+    const total = applications.length;
+    const inProgress = applications.filter(app => {
+      const s = app.statuses || {};
+      return s.applied && !s.placed;
+    }).length;
+    const placed = applications.filter(app => app.statuses?.placed).length;
+    return { total, inProgress, placed };
+  }, [applications]);
 
   const toggleStatus = async (appId, currentStatuses, statusId) => {
     try {
@@ -115,77 +126,102 @@ export default function Dashboard({ theme, onToggleTheme }) {
 
   return (
     <div className="app-container" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      {/* Animated background */}
+      <div className="animated-bg">
+        <div className="orb orb-1" />
+        <div className="orb orb-2" />
+        <div className="orb orb-3" />
+      </div>
+
       <Header theme={theme} onToggleTheme={onToggleTheme} />
       
-      <div style={{ padding: '2rem', flex: 1, position: 'relative' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-          <button className="secondary-btn" onClick={() => navigate('/')} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+      <div className="dashboard-content">
+        {/* Toolbar */}
+        <div className="dashboard-toolbar">
+          <button className="secondary-btn" onClick={() => navigate('/')}>
             <ArrowLeft size={16} /> Back to Home
           </button>
           
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--bg-secondary)', padding: '0.5rem 1rem', borderRadius: '8px' }}>
-              <img src={currentUser?.photoURL} alt="Profile" style={{ width: '24px', height: '24px', borderRadius: '50%' }} />
-              <span style={{ fontSize: '0.9rem', color: 'var(--text-primary)' }}>{currentUser?.displayName}</span>
-            </div>
-            <button className="secondary-btn" onClick={handleLogout}>Logout</button>
+          <div className="dashboard-user-section">
+            <button className="secondary-btn" onClick={handleLogout}>
+              <LogOut size={15} /> Logout
+            </button>
           </div>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-          <h1 style={{ margin: 0, color: 'var(--text-primary)' }}>My Applications</h1>
-          <button className="primary-btn" onClick={() => setIsAddModalOpen(true)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        {/* Title + Add button */}
+        <div className="dashboard-title-row">
+          <h1 className="dashboard-title">My Applications</h1>
+          <button className="primary-btn" onClick={() => setIsAddModalOpen(true)}>
             <Plus size={18} /> Add Application
           </button>
         </div>
 
+        {/* Stats Bar */}
+        {!loading && applications.length > 0 && (
+          <div className="dashboard-stats">
+            <div className="glass-panel stat-card highlight">
+              <div className="stat-value">{stats.total}</div>
+              <div className="stat-label">Total Applied</div>
+            </div>
+            <div className="glass-panel stat-card">
+              <div className="stat-value">{stats.inProgress}</div>
+              <div className="stat-label">In Progress</div>
+            </div>
+            <div className="glass-panel stat-card">
+              <div className="stat-value">{stats.placed}</div>
+              <div className="stat-label">Placed 🎉</div>
+            </div>
+          </div>
+        )}
+
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>Loading your dashboard...</div>
+          <div className="dashboard-loading">Loading your dashboard…</div>
         ) : applications.length === 0 ? (
-          <div className="glass-panel" style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-secondary)' }}>
-            <h2 style={{ color: 'var(--text-primary)' }}>No applications yet!</h2>
-            <p style={{ marginBottom: '1.5rem' }}>Go parse some emails and start tracking your placement journey.</p>
-            <button className="primary-btn" onClick={() => navigate('/parse')}>Parse Placement Mails</button>
+          <div className="glass-panel dashboard-empty">
+            <span className="empty-icon">📋</span>
+            <h2>No applications yet!</h2>
+            <p>Go parse some emails and start tracking your placement journey.</p>
+            <button className="primary-btn" onClick={() => navigate('/parse')}>
+              Parse Placement Mails
+            </button>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div className="app-cards-list">
             {applications.map((app) => (
-              <div key={app.id} className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div>
-                    <h2 style={{ margin: '0 0 0.25rem 0', color: 'var(--primary-color)' }}>{app.company}</h2>
-                    <h3 style={{ margin: '0', color: 'var(--text-primary)', fontSize: '1.1rem' }}>{app.role}</h3>
+              <div key={app.id} className="glass-panel app-card">
+                <div className="app-card-header">
+                  <div className="app-card-info">
+                    <h2>{app.company}</h2>
+                    <h3>{app.role}</h3>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                  <div className="app-card-date">
                     <Clock size={14} />
-                    Applied on: {new Date(app.appliedAt).toLocaleDateString()}
+                    {new Date(app.appliedAt).toLocaleDateString()}
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginTop: '0.5rem', padding: '1rem', background: 'var(--bg-primary)', borderRadius: '8px' }}>
-                  {STATUS_STAGES.map((stage) => {
+                {/* Status Pipeline */}
+                <div className="status-pipeline">
+                  {STATUS_STAGES.map((stage, idx) => {
                     const isChecked = app.statuses?.[stage.id] || false;
+                    // Connector is active if this stage is checked
+                    const showConnector = idx < STATUS_STAGES.length - 1;
                     return (
-                      <label 
-                        key={stage.id} 
-                        style={{ 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          gap: '0.5rem', 
-                          cursor: 'pointer',
-                          color: isChecked ? 'var(--primary-color)' : 'var(--text-secondary)',
-                          transition: 'color 0.2s'
-                        }}
-                      >
-                        <div onClick={() => toggleStatus(app.id, app.statuses || {}, stage.id)} style={{ display: 'flex', alignItems: 'center' }}>
-                          {isChecked ? (
-                            <CheckCircle2 size={20} color="var(--primary-color)" />
-                          ) : (
-                            <div style={{ width: '20px', height: '20px', borderRadius: '50%', border: '2px solid var(--border-medium)' }} />
-                          )}
+                      <React.Fragment key={stage.id}>
+                        <div
+                          className={`status-step ${isChecked ? 'checked' : ''}`}
+                          onClick={() => toggleStatus(app.id, app.statuses || {}, stage.id)}
+                        >
+                          <div className="status-step-circle">
+                            {isChecked && <CheckCircle2 size={14} />}
+                          </div>
+                          <span className="status-step-label">{stage.label}</span>
                         </div>
-                        <span style={{ fontSize: '0.9rem', userSelect: 'none' }}>{stage.label}</span>
-                      </label>
+                        {showConnector && (
+                          <div className={`status-step-connector ${isChecked ? 'active' : ''}`} />
+                        )}
+                      </React.Fragment>
                     );
                   })}
                 </div>
@@ -197,47 +233,42 @@ export default function Dashboard({ theme, onToggleTheme }) {
 
       {/* Manual Add Modal */}
       {isAddModalOpen && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          zIndex: 1000
-        }}>
-          <div className="glass-panel" style={{ padding: '2rem', width: '100%', maxWidth: '400px', position: 'relative' }}>
+        <div className="dashboard-modal-overlay" onClick={(e) => e.target === e.currentTarget && setIsAddModalOpen(false)}>
+          <div className="glass-panel dashboard-modal">
             <button 
+              className="dashboard-modal-close"
               onClick={() => setIsAddModalOpen(false)}
-              style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
             >
-              <X size={24} />
+              <X size={16} />
             </button>
-            <h2 style={{ marginTop: 0, marginBottom: '1.5rem', color: 'var(--text-primary)' }}>Manual Add</h2>
+            <h2>Add Application</h2>
             
-            <form onSubmit={handleAddApplication} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div>
-                <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Company Name</label>
+            <form onSubmit={handleAddApplication}>
+              <div className="form-group">
+                <label className="form-label">Company Name</label>
                 <input 
                   type="text" 
+                  className="form-input"
                   value={newCompany} 
                   onChange={(e) => setNewCompany(e.target.value)} 
                   placeholder="e.g., Google" 
                   required
-                  style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
                 />
               </div>
-              <div>
-                <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Role / Position</label>
+              <div className="form-group">
+                <label className="form-label">Role / Position</label>
                 <input 
                   type="text" 
+                  className="form-input"
                   value={newRole} 
                   onChange={(e) => setNewRole(e.target.value)} 
                   placeholder="e.g., Software Engineer" 
                   required
-                  style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
                 />
               </div>
               
-              <button type="submit" className="primary-btn" disabled={adding} style={{ marginTop: '1rem' }}>
-                {adding ? 'Saving...' : 'Save Application'}
+              <button type="submit" className="primary-btn" disabled={adding} style={{ width: '100%', marginTop: '0.5rem' }}>
+                {adding ? 'Saving…' : 'Save Application'}
               </button>
             </form>
           </div>
