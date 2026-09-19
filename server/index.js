@@ -1,12 +1,24 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 
 const app = express();
 const PORT = 3001;
 
-app.use(cors({ origin: 'http://localhost:5173' }));
+app.use(helmet());
+app.use(cors({ origin: 'http://localhost:5173' })); // In production Vercel handles same-origin via rewrites
 app.use(express.json({ limit: '1mb' }));
+
+// Rate limiter for /api/parse
+const parseLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 50, // limit each IP to 50 requests per windowMs
+  message: { error: 'Too many requests from this IP, please try again after 15 minutes.' },
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+});
 
 // ── Groq extraction prompt ──────────────────────────────────────────────────
 
@@ -92,11 +104,16 @@ function tryParseJSON(text) {
 
 // ── POST /api/parse ─────────────────────────────────────────────────────────
 
-app.post('/api/parse', async (req, res) => {
+app.post('/api/parse', parseLimiter, async (req, res) => {
   const { rawText } = req.body;
 
   if (!rawText || typeof rawText !== 'string' || rawText.trim().length === 0) {
     return res.status(400).json({ error: 'rawText is required and must be a non-empty string.' });
+  }
+
+  // Enforce a strict character length limit (100,000 characters is generous for an email)
+  if (rawText.length > 100000) {
+    return res.status(400).json({ error: 'Email text is too large. Please limit to 100,000 characters.' });
   }
 
   if (!process.env.GROQ_API_KEY || process.env.GROQ_API_KEY === 'your_groq_api_key_here') {
