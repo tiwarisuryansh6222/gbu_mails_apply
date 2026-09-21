@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, signOut } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 // Your web app's Firebase configuration
@@ -26,8 +26,13 @@ export const loginWithGoogle = async () => {
     const result = await signInWithPopup(auth, googleProvider);
     return result.user;
   } catch (error) {
-    console.error("Google Sign-In Error:", error);
-    throw error;
+    if (error.code === 'auth/popup-blocked' || error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
+      console.warn("Popup blocked or closed, falling back to redirect...");
+      await signInWithRedirect(auth, googleProvider);
+    } else {
+      console.error("Google Sign-In Error:", error);
+      throw error;
+    }
   }
 };
 

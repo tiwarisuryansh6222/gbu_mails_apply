@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Mail, Briefcase, LogIn, ArrowRight } from 'lucide-react';
@@ -6,12 +7,19 @@ import Header from '../components/Header';
 export default function Home({ theme, onToggleTheme }) {
   const { currentUser, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [loginError, setLoginError] = useState('');
 
   const handleLogin = async () => {
     try {
+      setIsLoggingIn(true);
+      setLoginError('');
       await loginWithGoogle();
     } catch (error) {
       console.error(error);
+      setLoginError(error.message || 'Failed to sign in. Please try again.');
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
@@ -41,9 +49,20 @@ export default function Home({ theme, onToggleTheme }) {
             </div>
             <h2>Get Started Now</h2>
             <p>Sign in with your Google account to start tracking your applications securely.</p>
-            <button className="primary-btn" onClick={handleLogin}>
-              <LogIn size={20} />
-              Sign in with Google
+            {loginError && (
+              <div style={{ color: '#ff4d4f', marginBottom: '1rem', fontSize: '0.9rem', textAlign: 'center' }}>
+                {loginError}
+              </div>
+            )}
+            <button className="primary-btn" onClick={handleLogin} disabled={isLoggingIn} style={{ opacity: isLoggingIn ? 0.7 : 1, cursor: isLoggingIn ? 'not-allowed' : 'pointer' }}>
+              {isLoggingIn ? (
+                <>Loading...</>
+              ) : (
+                <>
+                  <LogIn size={20} />
+                  Sign in with Google
+                </>
+              )}
             </button>
           </div>
         ) : (
