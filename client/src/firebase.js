@@ -26,15 +26,20 @@ export const loginWithGoogle = async () => {
     const result = await signInWithPopup(auth, googleProvider);
     return result.user;
   } catch (error) {
-    // Don't treat popup-closed as a hard error — user just dismissed it
-    if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
-      console.warn("Sign-in popup was closed by user.");
-      return null;
+    console.error("Google Sign-In Error:", error.code, error.message);
+
+    if (error.code === 'auth/unauthorized-domain') {
+      throw new Error('This domain is not authorized for sign-in. The site admin needs to add it to Firebase authorized domains.');
     }
     if (error.code === 'auth/popup-blocked') {
       throw new Error('Popup was blocked by your browser. Please allow popups for this site and try again.');
     }
-    console.error("Google Sign-In Error:", error);
+    if (error.code === 'auth/popup-closed-by-user') {
+      throw new Error('Sign-in popup was closed. Please try again.');
+    }
+    if (error.code === 'auth/cancelled-popup-request') {
+      throw new Error('Sign-in was cancelled. Please try again.');
+    }
     throw error;
   }
 };
