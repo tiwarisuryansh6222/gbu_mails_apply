@@ -19,7 +19,7 @@ export default function Home({ theme, onToggleTheme }) {
       if (user) {
         navigate('/parse');
       }
-      // If user is null, redirect flow was triggered — page will reload and onAuthStateChanged handles it
+      // If user is null, popup was dismissed — do nothing
     } catch (error) {
       console.error(error);
       setLoginError(error.message || 'Failed to sign in. Please try again.');

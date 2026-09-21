@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 // Your web app's Firebase configuration
@@ -21,28 +21,21 @@ export const db = getFirestore(app);
 // Initialize Google Auth Provider
 export const googleProvider = new GoogleAuthProvider();
 
-// Handle redirect result on page load (completes the signInWithRedirect flow)
-getRedirectResult(auth).catch((error) => {
-  // Silently ignore — if there's no redirect result, this is a normal page load
-  if (error.code !== 'auth/null-user') {
-    console.error("Redirect sign-in error:", error);
-  }
-});
-
 export const loginWithGoogle = async () => {
   try {
     const result = await signInWithPopup(auth, googleProvider);
     return result.user;
   } catch (error) {
-    if (error.code === 'auth/popup-blocked' || error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
-      console.warn("Popup blocked or closed, falling back to redirect...");
-      // signInWithRedirect will navigate away — auth completes on next page load via getRedirectResult above
-      await signInWithRedirect(auth, googleProvider);
-      return null; // Won't actually reach here since page navigates away
-    } else {
-      console.error("Google Sign-In Error:", error);
-      throw error;
+    // Don't treat popup-closed as a hard error — user just dismissed it
+    if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
+      console.warn("Sign-in popup was closed by user.");
+      return null;
     }
+    if (error.code === 'auth/popup-blocked') {
+      throw new Error('Popup was blocked by your browser. Please allow popups for this site and try again.');
+    }
+    console.error("Google Sign-In Error:", error);
+    throw error;
   }
 };
 
