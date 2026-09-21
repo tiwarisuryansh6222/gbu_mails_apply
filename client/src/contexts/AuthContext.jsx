@@ -23,13 +23,21 @@ export const AuthProvider = ({ children }) => {
 
   const value = {
     currentUser,
+    loading,
     loginWithGoogle,
     logoutUser
   };
 
   return (
     <AuthContext.Provider value={value}>
-      {!loading && children}
+      {loading ? (
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+          <div style={{ textAlign: 'center', opacity: 0.6 }}>
+            <div className="loading-spinner" style={{ width: 36, height: 36, border: '3px solid rgba(255,255,255,0.2)', borderTop: '3px solid #818cf8', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
+            <p style={{ margin: 0, fontSize: '0.9rem' }}>Loading...</p>
+          </div>
+        </div>
+      ) : children}
     </AuthContext.Provider>
   );
 };

@@ -14,7 +14,12 @@ export default function Home({ theme, onToggleTheme }) {
     try {
       setIsLoggingIn(true);
       setLoginError('');
-      await loginWithGoogle();
+      const user = await loginWithGoogle();
+      // If popup succeeded, navigate to parse page
+      if (user) {
+        navigate('/parse');
+      }
+      // If user is null, redirect flow was triggered — page will reload and onAuthStateChanged handles it
     } catch (error) {
       console.error(error);
       setLoginError(error.message || 'Failed to sign in. Please try again.');

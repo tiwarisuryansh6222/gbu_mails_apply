@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, signOut } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 // Your web app's Firebase configuration
@@ -21,6 +21,14 @@ export const db = getFirestore(app);
 // Initialize Google Auth Provider
 export const googleProvider = new GoogleAuthProvider();
 
+// Handle redirect result on page load (completes the signInWithRedirect flow)
+getRedirectResult(auth).catch((error) => {
+  // Silently ignore — if there's no redirect result, this is a normal page load
+  if (error.code !== 'auth/null-user') {
+    console.error("Redirect sign-in error:", error);
+  }
+});
+
 export const loginWithGoogle = async () => {
   try {
     const result = await signInWithPopup(auth, googleProvider);
@@ -28,7 +36,9 @@ export const loginWithGoogle = async () => {
   } catch (error) {
     if (error.code === 'auth/popup-blocked' || error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
       console.warn("Popup blocked or closed, falling back to redirect...");
+      // signInWithRedirect will navigate away — auth completes on next page load via getRedirectResult above
       await signInWithRedirect(auth, googleProvider);
+      return null; // Won't actually reach here since page navigates away
     } else {
       console.error("Google Sign-In Error:", error);
       throw error;
