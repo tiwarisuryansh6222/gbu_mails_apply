@@ -6,6 +6,7 @@ import { useLocalStorage } from './hooks/useLocalStorage';
 import Home from './pages/Home';
 import Parse from './pages/Parse';
 import Dashboard from './pages/Dashboard';
+import ParticleDrift from './components/ui/particle-drift';
 
 // Protected Route wrapper
 const ProtectedRoute = ({ children }) => {
@@ -26,7 +27,13 @@ export default function App() {
   };
 
   return (
-    <AuthProvider>
+    <>
+      <ParticleDrift 
+        mode={theme} 
+        className="fixed inset-0 w-full h-full z-[-1] pointer-events-none" 
+        opacity={0.75} 
+      />
+      <AuthProvider>
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Home theme={theme} onToggleTheme={toggleTheme} />} />
@@ -49,5 +56,6 @@ export default function App() {
         </Routes>
       </BrowserRouter>
     </AuthProvider>
+    </>
   );
 }

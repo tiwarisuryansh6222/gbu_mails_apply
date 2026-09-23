@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Mail, Briefcase, LogIn, ArrowRight, UserPlus, Eye, EyeOff } from 'lucide-react';
@@ -67,21 +67,14 @@ export default function Home({ theme, onToggleTheme }) {
 
   return (
     <div className="app-container" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      {/* Animated background orbs */}
-      <div className="animated-bg">
-        <div className="orb orb-1" />
-        <div className="orb orb-2" />
-        <div className="orb orb-3" />
-      </div>
-
       <Header theme={theme} onToggleTheme={onToggleTheme} />
       
       <main className="home-main">
-        <h1 className="hero-title">
-          Welcome to God Bless You App
+        <h1 className="hero-title" style={{ fontSize: 'clamp(3rem, 5vw, 5rem)', fontWeight: 800, marginBottom: '1.5rem', lineHeight: 1.1, letterSpacing: '-0.04em' }}>
+          Parse Placement<br />Emails. Fast.
         </h1>
-        <p className="hero-subtitle">
-          The ultimate placement portal for engineering students. Parse your college placement emails in seconds and track your applications — all in one place.
+        <p className="hero-subtitle" style={{ fontSize: '1.25rem', color: 'var(--text-secondary)', maxWidth: '600px', margin: '0 auto 3rem auto', lineHeight: 1.6 }}>
+          The ultimate placement portal for engineering students. Extract job details from emails instantly and track your applications — all in one place.
         </p>
 
         {!currentUser ? (
@@ -101,7 +94,6 @@ export default function Home({ theme, onToggleTheme }) {
               </div>
             )}
 
-            {/* Email/Password Form */}
             <form onSubmit={handleEmailSubmit} className="auth-form">
               {authMode === 'signup' && (
                 <div className="form-group">
@@ -174,12 +166,10 @@ export default function Home({ theme, onToggleTheme }) {
               </button>
             </form>
 
-            {/* Divider */}
             <div className="auth-divider">
               <span>or</span>
             </div>
 
-            {/* Google Sign-In Button */}
             <button
               className="google-btn"
               onClick={handleGoogleLogin}
@@ -195,7 +185,6 @@ export default function Home({ theme, onToggleTheme }) {
               Continue with Google
             </button>
 
-            {/* Toggle sign-in / sign-up */}
             <p className="auth-switch">
               {authMode === 'signin' ? (
                 <>Don't have an account? <button type="button" onClick={switchMode} className="auth-switch-btn">Sign up</button></>
@@ -232,6 +221,26 @@ export default function Home({ theme, onToggleTheme }) {
           </div>
         )}
       </main>
+      <footer style={{
+        marginTop: 'auto',
+        padding: '2rem',
+        textAlign: 'center',
+        borderTop: '1px solid var(--border-color)',
+        background: 'var(--surface-color)',
+        color: 'var(--text-secondary)'
+      }}>
+        <p>
+          Is Your Resume ATS-Ready?{' '}
+          <a 
+            href="https://reshape-shapeypouresume.vercel.app/" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            style={{ color: 'var(--primary-color)', textDecoration: 'none', fontWeight: 600 }}
+          >
+            Find Out in Seconds.
+          </a>
+        </p>
+      </footer>
     </div>
   );
 }
