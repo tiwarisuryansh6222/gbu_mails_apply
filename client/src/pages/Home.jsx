@@ -1,8 +1,22 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Mail, Briefcase, LogIn, ArrowRight, UserPlus, Eye, EyeOff } from 'lucide-react';
 import Header from '../components/Header';
+import { db } from '../firebase';
+import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
+import FilterBar from '../components/FilterBar';
+import ResultsView from '../components/ResultsView';
+import DraftMailModal from '../components/DraftMailModal';
+import Spinner from '../components/Spinner';
+
+const DEFAULT_FILTERS = {
+  workModes: [],
+  employmentTypes: [],
+  batches: [],
+  includeUnspecifiedBatch: true,
+  searchText: '',
+};
 
 export default function Home({ theme, onToggleTheme }) {
   const { currentUser, loginWithGoogle, loginWithEmail, signUpWithEmail } = useAuth();
@@ -16,6 +30,65 @@ export default function Home({ theme, onToggleTheme }) {
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+
+  // Jobs state
+  const [globalJobs, setGlobalJobs] = useState([]);
+  const [filters, setFilters] = useState(DEFAULT_FILTERS);
+  const [loadingJobs, setLoadingJobs] = useState(false);
+  const [draftMailJob, setDraftMailJob] = useState(null);
+
+  useEffect(() => {
+    if (currentUser) {
+      setLoadingJobs(true);
+      const q = query(collection(db, 'global_jobs'), orderBy('createdAt', 'desc'));
+      
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const jobs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setGlobalJobs(jobs);
+        setLoadingJobs(false);
+      }, (error) => {
+        console.error("Error fetching global jobs with orderBy, falling back:", error);
+        // Fallback without orderBy in case of missing index
+        const fallbackQ = query(collection(db, 'global_jobs'));
+        onSnapshot(fallbackQ, (fallbackSnap) => {
+          const jobs = fallbackSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          jobs.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+          setGlobalJobs(jobs);
+          setLoadingJobs(false);
+        });
+      });
+
+      return () => unsubscribe();
+    }
+  }, [currentUser]);
+
+  const filteredResults = useMemo(() => {
+    if (!globalJobs) return null;
+    return globalJobs.filter((job) => {
+      if (filters.workModes.length > 0 && !filters.workModes.includes(job.work_mode)) return false;
+      if (filters.employmentTypes.length > 0 && !filters.employmentTypes.includes(job.employment_type)) return false;
+      
+      if (filters.batches.length > 0) {
+        const jobBatches = job.eligible_batches || [];
+        if (jobBatches.length === 0) {
+          if (!filters.includeUnspecifiedBatch) return false;
+        } else {
+          if (!jobBatches.some((b) => filters.batches.includes(b))) return false;
+        }
+      } else if (!filters.includeUnspecifiedBatch) {
+        if ((job.eligible_batches || []).length === 0) return false;
+      }
+
+      if (filters.searchText.trim()) {
+        const searchQ = filters.searchText.toLowerCase();
+        const companyMatch = (job.company || '').toLowerCase().includes(searchQ);
+        const roleMatch = (job.role || '').toLowerCase().includes(searchQ);
+        if (!companyMatch && !roleMatch) return false;
+      }
+
+      return true;
+    });
+  }, [globalJobs, filters]);
 
   const handleGoogleLogin = async () => {
     try {
@@ -71,10 +144,10 @@ export default function Home({ theme, onToggleTheme }) {
       
       <main className="home-main">
         <h1 className="hero-title" style={{ fontSize: 'clamp(3rem, 5vw, 5rem)', fontWeight: 800, marginBottom: '1.5rem', lineHeight: 1.1, letterSpacing: '-0.04em' }}>
-          Parse Placement<br />Emails. Fast.
+          Apply to your next<br />dream job
         </h1>
         <p className="hero-subtitle" style={{ fontSize: '1.25rem', color: 'var(--text-secondary)', maxWidth: '600px', margin: '0 auto 3rem auto', lineHeight: 1.6 }}>
-          The ultimate placement portal for engineering students. Extract job details from emails instantly and track your applications — all in one place.
+          Find the best opportunities curated for you, filter by your preferences, and track your applications instantly.
         </p>
 
         {!currentUser ? (
@@ -194,30 +267,34 @@ export default function Home({ theme, onToggleTheme }) {
             </p>
           </div>
         ) : (
-          <div className="feature-cards">
-            
-            <div className="glass-panel feature-card" onClick={() => navigate('/parse')}>
-              <div className="feature-card-icon indigo">
-                <Mail size={32} />
-              </div>
-              <h2>Parse Mails</h2>
-              <p>Extract job details from "God Bless You" emails instantly using AI.</p>
-              <div className="feature-card-cta indigo">
-                Open Parser <ArrowRight size={18} />
-              </div>
+          <div style={{ width: '100%', maxWidth: '1200px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+
+            <div style={{ marginTop: '1rem' }}>
+              <h2 style={{ fontSize: '2rem', marginBottom: '1.5rem', fontWeight: 800 }}>Global Job Board</h2>
+              {loadingJobs ? (
+                <Spinner />
+              ) : globalJobs.length === 0 ? (
+                <div className="glass-panel" style={{ textAlign: 'center', padding: '3rem' }}>
+                  <p style={{ color: 'var(--text-secondary)' }}>No jobs posted yet.</p>
+                </div>
+              ) : (
+                <div className="results-layout" style={{ marginTop: 0 }}>
+                  <FilterBar
+                    results={globalJobs}
+                    filters={filters}
+                    onFiltersChange={setFilters}
+                  />
+                  <ResultsView data={filteredResults} onDraftMail={setDraftMailJob} />
+                </div>
+              )}
             </div>
 
-            <div className="glass-panel feature-card" onClick={() => navigate('/dashboard')}>
-              <div className="feature-card-icon purple">
-                <Briefcase size={32} />
-              </div>
-              <h2>My Applications</h2>
-              <p>Track your applied companies, interview rounds, and placement statuses.</p>
-              <div className="feature-card-cta purple">
-                Open Dashboard <ArrowRight size={18} />
-              </div>
-            </div>
-
+            {draftMailJob && (
+              <DraftMailModal
+                job={draftMailJob}
+                onClose={() => setDraftMailJob(null)}
+              />
+            )}
           </div>
         )}
       </main>

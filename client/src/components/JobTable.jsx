@@ -1,4 +1,8 @@
 import { useState, Fragment } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import { db } from '../firebase';
+import { collection, addDoc } from 'firebase/firestore';
+import { Bookmark, Check } from 'lucide-react';
 
 function isValidURL(str) {
   try {
@@ -16,9 +20,45 @@ function hasApplyEmail(job) {
 export default function JobTable({ data, sortConfig, onSort, onDraftMail }) {
   const [expandedRow, setExpandedRow] = useState(null);
 
-  // Column order: #, Company, Role (description), Apply Link, Email/Draft, then the rest
+  const { currentUser } = useAuth();
+  const [trackedJobs, setTrackedJobs] = useState({});
+  const [trackingJobs, setTrackingJobs] = useState({});
+
+  const handleTrack = async (e, job, index) => {
+    e.stopPropagation();
+    if (!currentUser) {
+      alert("Please login to track applications.");
+      return;
+    }
+    setTrackingJobs(prev => ({ ...prev, [index]: true }));
+    try {
+      await addDoc(collection(db, 'applications'), {
+        userId: currentUser.uid,
+        company: job.company || 'Unknown',
+        role: job.role || 'Unknown',
+        appliedAt: new Date().toISOString(),
+        statuses: {
+          applied: true,
+          test_given: false,
+          interview_round: false,
+          hr_round: false,
+          placed: false
+        },
+        jobDetails: job
+      });
+      setTrackedJobs(prev => ({ ...prev, [index]: true }));
+    } catch (error) {
+      console.error("Error saving tracking info: ", error);
+      alert("Failed to track application.");
+    } finally {
+      setTrackingJobs(prev => ({ ...prev, [index]: false }));
+    }
+  };
+
+  // Column order: #, Track, Company, Role (description), Apply Link, Email/Draft, then the rest
   const columns = [
     { key: '_index', label: '#', sortable: false },
+    { key: '_track', label: 'Track', sortable: false },
     { key: 'company', label: 'Company', sortable: true },
     { key: 'role', label: 'Role / Description', sortable: true },
     { key: 'apply_link', label: 'Apply Link', sortable: false },
@@ -68,6 +108,22 @@ export default function JobTable({ data, sortConfig, onSort, onDraftMail }) {
               >
                 {/* # */}
                 <td className="row-index">{i + 1}</td>
+
+                {/* Track */}
+                <td>
+                  <button
+                    className={`primary-btn btn-small ${trackedJobs[i] ? 'tracked' : ''}`}
+                    onClick={(e) => handleTrack(e, job, i)}
+                    disabled={trackingJobs[i] || trackedJobs[i]}
+                    style={{ padding: '0.25rem 0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                  >
+                    {trackedJobs[i] ? (
+                      <Check size={14} />
+                    ) : (
+                      <Bookmark size={14} />
+                    )}
+                  </button>
+                </td>
 
                 {/* Company */}
                 <td style={{ fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>

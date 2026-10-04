@@ -6,6 +6,7 @@ import { useLocalStorage } from './hooks/useLocalStorage';
 import Home from './pages/Home';
 import Parse from './pages/Parse';
 import Dashboard from './pages/Dashboard';
+import Admin from './pages/Admin';
 import ParticleDrift from './components/ui/particle-drift';
 
 // Protected Route wrapper
@@ -50,6 +51,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <Dashboard theme={theme} onToggleTheme={toggleTheme} />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/admin" 
+            element={
+              <ProtectedRoute>
+                <Admin theme={theme} onToggleTheme={toggleTheme} />
               </ProtectedRoute>
             } 
           />

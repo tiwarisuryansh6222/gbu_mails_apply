@@ -759,6 +759,10 @@ h3 { font-size: 1.125rem; font-weight: 600; letter-spacing: -0.02em; }
   align-items: start;
 }
 
+.results-layout > * {
+  min-width: 0;
+}
+
 @media (max-width: 900px) {
   .results-layout {
     grid-template-columns: 1fr;
