@@ -20,6 +20,25 @@ const parseLimiter = rateLimit({
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 });
 
+import admin from 'firebase-admin';
+
+// Initialize Firebase Admin (defensively)
+try {
+  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount)
+    });
+    console.log('Firebase Admin initialized successfully.');
+  } else {
+    console.warn('FIREBASE_SERVICE_ACCOUNT not found in environment. Webhook writes will fail.');
+  }
+} catch (error) {
+  console.error('Failed to initialize Firebase Admin:', error);
+}
+
+const firestoreDB = admin.apps.length ? admin.firestore() : null;
+
 // ── Groq extraction prompt ──────────────────────────────────────────────────
 
 const SYSTEM_PROMPT = `You are a structured data extractor for college placement cell emails.
@@ -159,6 +178,69 @@ app.post('/api/parse', parseLimiter, async (req, res) => {
     }
 
     return res.status(500).json({ error: 'Failed to parse the email. The AI response was not valid JSON even after retry.' });
+  }
+});
+
+// ── Webhook: auto-forwarded emails ──────────────────────────────────────────
+
+app.post('/api/webhook/email', async (req, res) => {
+  const { rawText, secret } = req.body;
+
+  // Simple security check so random people can't upload fake jobs
+  if (!process.env.WEBHOOK_SECRET) {
+    console.warn('WEBHOOK_SECRET is not set in environment.');
+  } else if (secret !== process.env.WEBHOOK_SECRET) {
+    return res.status(401).json({ error: 'Unauthorized. Invalid secret.' });
+  }
+
+  if (!rawText || typeof rawText !== 'string' || rawText.trim().length === 0) {
+    return res.status(400).json({ error: 'rawText is required.' });
+  }
+
+  try {
+    const messages = [
+      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'user', content: rawText },
+    ];
+    let raw = await callGroq(messages);
+    let parsed;
+    
+    try {
+      parsed = tryParseJSON(raw);
+    } catch {
+      messages.push({ role: 'assistant', content: raw });
+      messages.push({ role: 'user', content: RETRY_PROMPT });
+      raw = await callGroq(messages);
+      parsed = tryParseJSON(raw);
+    }
+
+    if (!Array.isArray(parsed)) {
+      return res.status(502).json({ error: 'AI did not return an array.' });
+    }
+
+    if (parsed.length === 0) {
+      return res.json({ message: 'Email parsed. No job postings found. Ignored.' });
+    }
+
+    if (!firestoreDB) {
+      return res.status(500).json({ error: 'Firebase Admin not initialized. Cannot save jobs.' });
+    }
+
+    // Save to Firestore
+    const batch = firestoreDB.batch();
+    const globalJobsRef = firestoreDB.collection('global_jobs');
+    
+    parsed.forEach((job) => {
+      const docRef = globalJobsRef.doc();
+      batch.set(docRef, { ...job, createdAt: new Date().toISOString() });
+    });
+
+    await batch.commit();
+
+    return res.json({ message: `Successfully added ${parsed.length} jobs to Global Job Board.` });
+  } catch (error) {
+    console.error('Webhook processing error:', error);
+    return res.status(500).json({ error: 'Internal server error processing webhook.' });
   }
 });
 
