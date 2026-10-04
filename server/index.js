@@ -49,6 +49,7 @@ RULES:
 - If the email lists multiple roles under one company, create a SEPARATE object for each role.
 - IMPORTANT: Do NOT create duplicate entries. If the same company + role combination appears multiple times in the email (e.g. repeated in headers, footers, or forwarded copies), output it only ONCE.
 - If an email address is mentioned alongside a job posting (for sending CVs/resumes), extract it into "apply_email". Do NOT put email addresses in "apply_link" — that field is only for web URLs.
+- IMPORTANT PRE-CHECK: First, determine if the email actually contains a job opportunity/hiring post. If the email is just a general announcement (e.g., interview schedules, ID card reminders, shortlisted students list, event invitations) and does NOT contain any new job openings, you MUST return an empty array [].
 - Never fail. Always return at least an empty array [].
 - Do NOT wrap the JSON in markdown code fences or add any text outside the array.`;
 
