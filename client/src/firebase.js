@@ -28,6 +28,13 @@ export const googleProvider = new GoogleAuthProvider();
 export const loginWithGoogle = async () => {
   try {
     const result = await signInWithPopup(auth, googleProvider);
+    
+    // Domain restriction check
+    if (result.user.email && !result.user.email.endsWith('@vitbhopal.ac.in')) {
+      await signOut(auth); // Log them back out immediately
+      throw new Error('Access restricted. Please use your @vitbhopal.ac.in university email address.');
+    }
+    
     return result.user;
   } catch (error) {
     console.error("Google Sign-In Error:", error.code, error.message);
@@ -50,6 +57,10 @@ export const loginWithGoogle = async () => {
 
 // Email/Password Sign Up
 export const signUpWithEmail = async (email, password, displayName) => {
+  if (!email.endsWith('@vitbhopal.ac.in')) {
+    throw new Error('Access restricted. Please use your @vitbhopal.ac.in university email address.');
+  }
+
   try {
     const result = await createUserWithEmailAndPassword(auth, email, password);
     // Set display name on the newly created user
@@ -75,6 +86,10 @@ export const signUpWithEmail = async (email, password, displayName) => {
 
 // Email/Password Sign In
 export const loginWithEmail = async (email, password) => {
+  if (!email.endsWith('@vitbhopal.ac.in')) {
+    throw new Error('Access restricted. Please use your @vitbhopal.ac.in university email address.');
+  }
+
   try {
     const result = await signInWithEmailAndPassword(auth, email, password);
     return result.user;
