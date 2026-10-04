@@ -248,7 +248,7 @@ app.post('/api/webhook/email', async (req, res) => {
     return res.json({ message: `Successfully added ${parsed.length} jobs to Global Job Board.` });
   } catch (error) {
     console.error('Webhook processing error:', error);
-    return res.status(500).json({ error: 'Internal server error processing webhook.' });
+    return res.status(500).json({ error: 'Internal server error processing webhook. Details: ' + error.message });
   }
 });
 
