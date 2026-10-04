@@ -20,24 +20,32 @@ const parseLimiter = rateLimit({
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 });
 
-import admin from 'firebase-admin';
+import { initializeApp, cert, getApps } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
 
 // Initialize Firebase Admin (defensively)
+let firestoreDB = null;
 try {
   if (process.env.FIREBASE_SERVICE_ACCOUNT) {
     const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount)
-    });
-    console.log('Firebase Admin initialized successfully.');
+    // Vercel sometimes double escapes newlines in env variables
+    if (serviceAccount.private_key) {
+      serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+    }
+    
+    if (getApps().length === 0) {
+      initializeApp({
+        credential: cert(serviceAccount)
+      });
+      console.log('Firebase Admin initialized successfully.');
+    }
+    firestoreDB = getFirestore();
   } else {
     console.warn('FIREBASE_SERVICE_ACCOUNT not found in environment. Webhook writes will fail.');
   }
 } catch (error) {
   console.error('Failed to initialize Firebase Admin:', error);
 }
-
-const firestoreDB = admin.apps.length ? admin.firestore() : null;
 
 // ── Groq extraction prompt ──────────────────────────────────────────────────
 
