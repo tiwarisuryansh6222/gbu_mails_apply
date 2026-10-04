@@ -92,7 +92,7 @@ async function callGroq(messages) {
       'Authorization': 'Bearer ' + process.env.GROQ_API_KEY,
     },
     body: JSON.stringify({
-      model: 'llama3-70b-8192',
+      model: 'llama-3.1-8b-instant',
       messages,
       temperature: 0.1,
       max_tokens: 8192,
