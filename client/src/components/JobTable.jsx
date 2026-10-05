@@ -1,4 +1,5 @@
 import { useState, Fragment } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../firebase';
 import { collection, addDoc } from 'firebase/firestore';
@@ -18,6 +19,7 @@ function hasApplyEmail(job) {
 }
 
 export default function JobTable({ data, sortConfig, onSort, onDraftMail }) {
+  const navigate = useNavigate();
   const [expandedRow, setExpandedRow] = useState(null);
 
   const { currentUser } = useAuth();
@@ -47,6 +49,7 @@ export default function JobTable({ data, sortConfig, onSort, onDraftMail }) {
         jobDetails: job
       });
       setTrackedJobs(prev => ({ ...prev, [index]: true }));
+      navigate('/dashboard');
     } catch (error) {
       console.error("Error saving tracking info: ", error);
       alert("Failed to track application.");

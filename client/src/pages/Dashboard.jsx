@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Header from '../components/Header';
 import { db } from '../firebase';
-import { collection, query, where, getDocs, doc, updateDoc, addDoc } from 'firebase/firestore';
-import { ArrowLeft, CheckCircle2, Clock, Plus, X, LogOut } from 'lucide-react';
+import { collection, query, where, getDocs, doc, updateDoc, addDoc, deleteDoc } from 'firebase/firestore';
+import { ArrowLeft, CheckCircle2, Clock, Plus, X, LogOut, Trash2 } from 'lucide-react';
 
 const STATUS_STAGES = [
   { id: 'applied', label: 'Applied' },
@@ -79,6 +79,17 @@ export default function Dashboard({ theme, onToggleTheme }) {
     } catch (error) {
       console.error("Error updating status: ", error);
       // Revert on error could be implemented here
+    }
+  };
+
+  const handleRemoveApplication = async (appId) => {
+    if (!window.confirm('Are you sure you want to remove this application?')) return;
+    try {
+      await deleteDoc(doc(db, 'applications', appId));
+      setApplications(apps => apps.filter(app => app.id !== appId));
+    } catch (error) {
+      console.error("Error removing application: ", error);
+      alert("Failed to remove application");
     }
   };
 
@@ -181,9 +192,9 @@ export default function Dashboard({ theme, onToggleTheme }) {
           <div className="glass-panel dashboard-empty">
             <span className="empty-icon">📋</span>
             <h2>No applications yet!</h2>
-            <p>Go parse some emails and start tracking your placement journey.</p>
-            <button className="primary-btn" onClick={() => navigate('/parse')}>
-              Parse Placement Mails
+            <p>Go to Home and track jobs to start your placement journey.</p>
+            <button className="primary-btn" onClick={() => navigate('/')}>
+              Browse Jobs
             </button>
           </div>
         ) : (
@@ -195,9 +206,18 @@ export default function Dashboard({ theme, onToggleTheme }) {
                     <h2>{app.company}</h2>
                     <h3>{app.role}</h3>
                   </div>
-                  <div className="app-card-date">
-                    <Clock size={14} />
-                    {new Date(app.appliedAt).toLocaleDateString()}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <div className="app-card-date">
+                      <Clock size={14} />
+                      {new Date(app.appliedAt).toLocaleDateString()}
+                    </div>
+                    <button 
+                      onClick={() => handleRemoveApplication(app.id)}
+                      style={{ background: 'none', border: 'none', color: 'var(--error-color)', cursor: 'pointer', padding: '0.25rem' }}
+                      title="Remove application"
+                    >
+                      <Trash2 size={16} />
+                    </button>
                   </div>
                 </div>
 

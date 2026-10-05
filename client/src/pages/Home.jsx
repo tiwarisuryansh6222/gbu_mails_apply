@@ -36,6 +36,7 @@ export default function Home({ theme, onToggleTheme }) {
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [loadingJobs, setLoadingJobs] = useState(false);
   const [draftMailJob, setDraftMailJob] = useState(null);
+  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     if (currentUser) {
@@ -96,7 +97,7 @@ export default function Home({ theme, onToggleTheme }) {
       setLoginError('');
       const user = await loginWithGoogle();
       if (user) {
-        navigate('/parse');
+        navigate('/dashboard');
       }
     } catch (error) {
       console.error(error);
@@ -123,7 +124,7 @@ export default function Home({ theme, onToggleTheme }) {
       }
 
       if (user) {
-        navigate('/parse');
+        navigate('/dashboard');
       }
     } catch (error) {
       console.error(error);
@@ -270,7 +271,19 @@ export default function Home({ theme, onToggleTheme }) {
           <div style={{ width: '100%', maxWidth: '1200px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
 
             <div style={{ marginTop: '1rem' }}>
-              <h2 style={{ fontSize: '2rem', marginBottom: '1.5rem', fontWeight: 800 }}>Global Job Board</h2>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                <h2 style={{ fontSize: '2rem', fontWeight: 800 }}>God Bless You Mails</h2>
+                {globalJobs.length > 0 && (
+                  <button 
+                    className="secondary-btn" 
+                    onClick={() => setShowFilters(!showFilters)}
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem' }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+                    {showFilters ? 'Hide Filters' : 'Show Filters'}
+                  </button>
+                )}
+              </div>
               {loadingJobs ? (
                 <Spinner />
               ) : globalJobs.length === 0 ? (
@@ -279,11 +292,13 @@ export default function Home({ theme, onToggleTheme }) {
                 </div>
               ) : (
                 <div className="results-layout" style={{ marginTop: 0 }}>
-                  <FilterBar
-                    results={globalJobs}
-                    filters={filters}
-                    onFiltersChange={setFilters}
-                  />
+                  {showFilters && (
+                    <FilterBar
+                      results={globalJobs}
+                      filters={filters}
+                      onFiltersChange={setFilters}
+                    />
+                  )}
                   <ResultsView data={filteredResults} onDraftMail={setDraftMailJob} />
                 </div>
               )}
@@ -300,23 +315,34 @@ export default function Home({ theme, onToggleTheme }) {
       </main>
       <footer style={{
         marginTop: 'auto',
-        padding: '2rem',
+        padding: '3rem 2rem',
         textAlign: 'center',
         borderTop: '1px solid var(--border-color)',
         background: 'var(--surface-color)',
         color: 'var(--text-secondary)'
       }}>
-        <p>
-          Is Your Resume ATS-Ready?{' '}
-          <a 
-            href="https://reshape-shapeypouresume.vercel.app/" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            style={{ color: 'var(--primary-color)', textDecoration: 'none', fontWeight: 600 }}
-          >
-            Find Out in Seconds.
-          </a>
-        </p>
+        <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'center' }}>
+          <h3 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--text-primary)' }}>God Bless You Mails</h3>
+          <p style={{ margin: 0, maxWidth: '500px', lineHeight: '1.5' }}>
+            Your central hub for tracking placement opportunities and organizing your job search. Restricted to VIT Bhopal students.
+          </p>
+          <div style={{ margin: '1rem 0' }}>
+            <p style={{ margin: 0 }}>
+              Is Your Resume ATS-Ready?{' '}
+              <a 
+                href="https://reshape-shapeypouresume.vercel.app/" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                style={{ color: 'var(--primary-color)', textDecoration: 'none', fontWeight: 600 }}
+              >
+                Find Out in Seconds.
+              </a>
+            </p>
+          </div>
+          <div style={{ fontSize: '0.85rem', opacity: 0.7, marginTop: '1rem', borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem', width: '100%' }}>
+            &copy; {new Date().getFullYear()} God Bless You Mails. All rights reserved. Built for VIT Bhopal.
+          </div>
+        </div>
       </footer>
     </div>
   );

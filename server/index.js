@@ -84,24 +84,25 @@ const RETRY_PROMPT = 'Your previous response was not valid JSON. You MUST return
 
 // ── Helper: call Groq ────────────────────────────────────────────────────
 
-async function callGroq(messages) {
-  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+async function callMistral(messages) {
+  const res = await fetch('https://api.mistral.ai/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': 'Bearer ' + process.env.GROQ_API_KEY,
+      'Accept': 'application/json',
+      'Authorization': 'Bearer ' + process.env.MISTRAL_API_KEY,
     },
     body: JSON.stringify({
-      model: 'qwen/qwen3.8-27b',
+      model: 'mistral-small-latest', // or mistral-large-latest depending on what they want, let's use mistral-small-latest for speed/cost
       messages,
       temperature: 0.1,
-      max_tokens: 8192,
+      response_format: { type: "json_object" }
     }),
   });
 
   if (!res.ok) {
     const body = await res.text();
-    const error = new Error('Groq API error ' + res.status);
+    const error = new Error('Mistral API error ' + res.status);
     error.status = res.status;
     error.body = body;
     throw error;
@@ -143,8 +144,8 @@ app.post('/api/parse', parseLimiter, async (req, res) => {
     return res.status(400).json({ error: 'Email text is too large. Please limit to 100,000 characters.' });
   }
 
-  if (!process.env.GROQ_API_KEY || process.env.GROQ_API_KEY === 'your_groq_api_key_here') {
-    return res.status(500).json({ error: 'Groq API key is not configured. Add GROQ_API_KEY to server/.env' });
+  if (!process.env.MISTRAL_API_KEY || process.env.MISTRAL_API_KEY === 'your_mistral_api_key_here') {
+    return res.status(500).json({ error: 'Mistral API key is not configured. Add MISTRAL_API_KEY to server/.env' });
   }
 
   const messages = [
@@ -153,36 +154,36 @@ app.post('/api/parse', parseLimiter, async (req, res) => {
   ];
 
   try {
-    let raw = await callGroq(messages);
+    let raw = await callMistral(messages);
     let parsed;
 
     try {
       parsed = tryParseJSON(raw);
     } catch {
-      console.warn('First Groq response was not valid JSON. Retrying…');
+      console.warn('First Mistral response was not valid JSON. Retrying…');
       messages.push({ role: 'assistant', content: raw });
       messages.push({ role: 'user', content: RETRY_PROMPT });
-      raw = await callGroq(messages);
+      raw = await callMistral(messages);
       parsed = tryParseJSON(raw);
     }
 
-    if (!Array.isArray(parsed)) {
-      return res.status(502).json({ error: 'Groq returned valid JSON but it was not an array.' });
-    }
+      if (!Array.isArray(parsed)) {
+        return res.status(502).json({ error: 'Mistral returned valid JSON but it was not an array.' });
+      }
 
-    return res.json({ results: parsed });
-  } catch (err) {
-    console.error('Parse error:', err);
+      return res.json({ results: parsed });
+    } catch (err) {
+      console.error('Parse error:', err);
 
-    if (err.status === 401) {
-      return res.status(401).json({ error: 'Invalid Groq API key.' });
-    }
-    if (err.status === 429) {
-      return res.status(429).json({ error: 'Groq rate limit exceeded. Please wait a moment and try again.' });
-    }
-    if (err.status) {
-      return res.status(502).json({ error: 'Groq API returned status ' + err.status + ': ' + err.body });
-    }
+      if (err.status === 401) {
+        return res.status(401).json({ error: 'Invalid Mistral API key.' });
+      }
+      if (err.status === 429) {
+        return res.status(429).json({ error: 'Mistral rate limit exceeded. Please wait a moment and try again.' });
+      }
+      if (err.status) {
+        return res.status(502).json({ error: 'Mistral API returned status ' + err.status + ': ' + err.body });
+      }
 
     return res.status(500).json({ error: 'Failed to parse the email. The AI response was not valid JSON even after retry.' });
   }
@@ -209,7 +210,7 @@ app.post('/api/webhook/email', async (req, res) => {
       { role: 'system', content: SYSTEM_PROMPT },
       { role: 'user', content: rawText },
     ];
-    let raw = await callGroq(messages);
+    let raw = await callMistral(messages);
     let parsed;
     
     try {
@@ -217,7 +218,7 @@ app.post('/api/webhook/email', async (req, res) => {
     } catch {
       messages.push({ role: 'assistant', content: raw });
       messages.push({ role: 'user', content: RETRY_PROMPT });
-      raw = await callGroq(messages);
+      raw = await callMistral(messages);
       parsed = tryParseJSON(raw);
     }
 

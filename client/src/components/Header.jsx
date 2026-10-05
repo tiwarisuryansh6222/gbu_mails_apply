@@ -1,19 +1,28 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Home, FileText, LayoutDashboard } from 'lucide-react';
+import { Home, FileText, LayoutDashboard, LogOut } from 'lucide-react';
 
 export default function Header({ theme, onToggleTheme }) {
-  const { currentUser } = useAuth();
+  const { currentUser, logoutUser } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
   const isActive = (path) => location.pathname === path;
 
+  const handleLogout = async () => {
+    try {
+      await logoutUser();
+      navigate('/');
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   return (
     <header className="header" style={{ position: 'relative' }}>
       <div className="header-brand" onClick={() => navigate('/')}>
         <div className="brand-icon">⚡</div>
-        <span className="brand-text">Placement Filter</span>
+        <span className="brand-text">God Bless You Mails</span>
       </div>
 
       <nav className="header-nav" style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>
@@ -24,12 +33,6 @@ export default function Header({ theme, onToggleTheme }) {
               onClick={() => navigate('/')}
             >
               <Home size={15} /> Home
-            </button>
-            <button
-              className={`header-nav-link ${isActive('/parse') ? 'active' : ''}`}
-              onClick={() => navigate('/parse')}
-            >
-              <FileText size={15} /> Parse
             </button>
             <button
               className={`header-nav-link ${isActive('/dashboard') ? 'active' : ''}`}
@@ -65,9 +68,12 @@ export default function Header({ theme, onToggleTheme }) {
 
       <div className="header-actions">
         {currentUser && (
-          <div className="header-user">
-            <img src={currentUser.photoURL} alt="" />
-            <span>{currentUser.displayName?.split(' ')[0]}</span>
+          <div className="header-user" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            {currentUser.photoURL && <img src={currentUser.photoURL} alt="" />}
+            <span>{currentUser.displayName?.split(' ')[0] || 'Student'}</span>
+            <button onClick={handleLogout} className="header-nav-link" style={{ color: 'var(--error-color)', padding: '0.25rem 0.5rem' }} title="Logout">
+              <LogOut size={16} />
+            </button>
           </div>
         )}
         <button
