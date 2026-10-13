@@ -90,10 +90,10 @@ async function callMistral(messages) {
     headers: {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
-      'Authorization': 'Bearer ' + process.env.MISTRAL_API_KEY,
+      'Authorization': 'Bearer ' + process.env.MISTRAL_API_KEY?.trim(),
     },
     body: JSON.stringify({
-      model: 'mistral-small-latest', // or mistral-large-latest depending on what they want, let's use mistral-small-latest for speed/cost
+      model: 'open-mistral-7b',
       messages,
       temperature: 0.1,
       response_format: { type: "json_object" }
@@ -144,7 +144,7 @@ app.post('/api/parse', parseLimiter, async (req, res) => {
     return res.status(400).json({ error: 'Email text is too large. Please limit to 100,000 characters.' });
   }
 
-  if (!process.env.MISTRAL_API_KEY || process.env.MISTRAL_API_KEY === 'your_mistral_api_key_here') {
+  if (!process.env.MISTRAL_API_KEY || process.env.MISTRAL_API_KEY.trim() === 'your_mistral_api_key_here') {
     return res.status(500).json({ error: 'Mistral API key is not configured. Add MISTRAL_API_KEY to server/.env' });
   }
 
