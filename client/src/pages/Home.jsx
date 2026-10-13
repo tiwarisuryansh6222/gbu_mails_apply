@@ -36,7 +36,6 @@ export default function Home({ theme, onToggleTheme }) {
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [loadingJobs, setLoadingJobs] = useState(false);
   const [draftMailJob, setDraftMailJob] = useState(null);
-  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     if (currentUser) {
@@ -271,19 +270,7 @@ export default function Home({ theme, onToggleTheme }) {
           <div style={{ width: '100%', maxWidth: '1200px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
 
             <div style={{ marginTop: '1rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                <h2 style={{ fontSize: '2rem', fontWeight: 800 }}>God Bless You Mails</h2>
-                {globalJobs.length > 0 && (
-                  <button 
-                    className="secondary-btn" 
-                    onClick={() => setShowFilters(!showFilters)}
-                    style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem' }}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
-                    {showFilters ? 'Hide Filters' : 'Show Filters'}
-                  </button>
-                )}
-              </div>
+              <h2 style={{ fontSize: '2rem', marginBottom: '1.5rem', fontWeight: 800 }}>Global Job Board</h2>
               {loadingJobs ? (
                 <Spinner />
               ) : globalJobs.length === 0 ? (
@@ -292,13 +279,11 @@ export default function Home({ theme, onToggleTheme }) {
                 </div>
               ) : (
                 <div className="results-layout" style={{ marginTop: 0 }}>
-                  {showFilters && (
-                    <FilterBar
-                      results={globalJobs}
-                      filters={filters}
-                      onFiltersChange={setFilters}
-                    />
-                  )}
+                  <FilterBar
+                    results={globalJobs}
+                    filters={filters}
+                    onFiltersChange={setFilters}
+                  />
                   <ResultsView data={filteredResults} onDraftMail={setDraftMailJob} />
                 </div>
               )}
