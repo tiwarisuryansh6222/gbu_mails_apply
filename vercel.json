@@ -23,8 +23,12 @@
       "destination": "https://gbu-mails.firebaseapp.com/__/auth/$1"
     },
     {
+      "source": "/assets/(.*)",
+      "destination": "/client/assets/$1"
+    },
+    {
       "source": "/(.*)",
-      "destination": "/client/$1"
+      "destination": "/client/index.html"
     }
   ]
 }
