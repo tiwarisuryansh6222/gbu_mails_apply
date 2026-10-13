@@ -18,7 +18,15 @@ function hasApplyEmail(job) {
   return job.apply_email && job.apply_email !== 'not mentioned';
 }
 
-export default function JobTable({ data, sortConfig, onSort, onDraftMail }) {
+export default function JobTable({ 
+  data, 
+  sortConfig, 
+  onSort, 
+  onDraftMail,
+  appliedJobs = {},
+  togglingJob = {},
+  onToggleApply
+}) {
   const navigate = useNavigate();
   const [expandedRow, setExpandedRow] = useState(null);
 
@@ -28,6 +36,10 @@ export default function JobTable({ data, sortConfig, onSort, onDraftMail }) {
 
   const handleTrack = async (e, job, index) => {
     e.stopPropagation();
+    if (onToggleApply) {
+      onToggleApply(job);
+      return;
+    }
     if (!currentUser) {
       alert("Please login to track applications.");
       return;
@@ -49,7 +61,6 @@ export default function JobTable({ data, sortConfig, onSort, onDraftMail }) {
         jobDetails: job
       });
       setTrackedJobs(prev => ({ ...prev, [index]: true }));
-      navigate('/dashboard');
     } catch (error) {
       console.error("Error saving tracking info: ", error);
       alert("Failed to track application.");
@@ -58,10 +69,10 @@ export default function JobTable({ data, sortConfig, onSort, onDraftMail }) {
     }
   };
 
-  // Column order: #, Track, Company, Role (description), Apply Link, Email/Draft, then the rest
+  // Column order: #, Applied, Company, Role (description), Apply Link, Email/Draft, then the rest
   const columns = [
     { key: '_index', label: '#', sortable: false },
-    { key: '_track', label: 'Track', sortable: false },
+    { key: '_track', label: 'Applied', sortable: false },
     { key: 'company', label: 'Company', sortable: true },
     { key: 'role', label: 'Role / Description', sortable: true },
     { key: 'apply_link', label: 'Apply Link', sortable: false },
@@ -112,20 +123,40 @@ export default function JobTable({ data, sortConfig, onSort, onDraftMail }) {
                 {/* # */}
                 <td className="row-index">{i + 1}</td>
 
-                {/* Track */}
+                {/* Applied */}
                 <td>
-                  <button
-                    className={`primary-btn btn-small ${trackedJobs[i] ? 'tracked' : ''}`}
-                    onClick={(e) => handleTrack(e, job, i)}
-                    disabled={trackingJobs[i] || trackedJobs[i]}
-                    style={{ padding: '0.25rem 0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
-                  >
-                    {trackedJobs[i] ? (
-                      <Check size={14} />
-                    ) : (
-                      <Bookmark size={14} />
-                    )}
-                  </button>
+                  {(() => {
+                    const key = `${(job.company || '').trim().toLowerCase()}::${(job.role || '').trim().toLowerCase()}`;
+                    const isApplied = !!appliedJobs[key] || !!trackedJobs[i];
+                    const isToggling = !!togglingJob[key] || !!trackingJobs[i];
+                    return (
+                      <button
+                        className={`applied-tag-btn ${isApplied ? 'applied' : ''}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onToggleApply) {
+                            onToggleApply(job);
+                          } else {
+                            handleTrack(e, job, i);
+                          }
+                        }}
+                        disabled={isToggling}
+                        title={isApplied ? "Applied! Click to unmark" : "Click to mark as applied"}
+                      >
+                        {isApplied ? (
+                          <>
+                            <Check size={14} />
+                            <span>Applied</span>
+                          </>
+                        ) : (
+                          <>
+                            <Bookmark size={14} />
+                            <span>Apply</span>
+                          </>
+                        )}
+                      </button>
+                    );
+                  })()}
                 </td>
 
                 {/* Company */}

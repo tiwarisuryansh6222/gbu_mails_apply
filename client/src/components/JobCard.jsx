@@ -26,15 +26,29 @@ function hasApplyEmail(job) {
   return job.apply_email && job.apply_email !== 'not mentioned';
 }
 
-export default function JobCard({ job, style, onDraftMail }) {
+export default function JobCard({ 
+  job, 
+  style, 
+  onDraftMail,
+  isApplied = false,
+  isToggling = false,
+  onToggleApply
+}) {
   const navigate = useNavigate();
   const [expanded, setExpanded] = useState(false);
   const { currentUser } = useAuth();
   const [tracking, setTracking] = useState(false);
   const [tracked, setTracked] = useState(false);
 
+  const appliedState = isApplied || tracked;
+  const trackingState = isToggling || tracking;
+
   const handleTrack = async (e) => {
     e.stopPropagation();
+    if (onToggleApply) {
+      onToggleApply();
+      return;
+    }
     if (!currentUser) {
       alert("Please login to track applications.");
       return;
@@ -56,7 +70,6 @@ export default function JobCard({ job, style, onDraftMail }) {
         jobDetails: job // keeping a reference of other details
       });
       setTracked(true);
-      navigate('/dashboard');
     } catch (error) {
       console.error("Error saving tracking info: ", error);
       alert("Failed to track application.");
@@ -133,14 +146,22 @@ export default function JobCard({ job, style, onDraftMail }) {
 
       <div className="job-card-actions">
         <button
-          className={`primary-btn ${tracked ? 'tracked' : ''}`}
-          onClick={handleTrack}
-          disabled={tracking || tracked}
+          className={`applied-tag-btn ${appliedState ? 'applied' : ''}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (onToggleApply) {
+              onToggleApply();
+            } else {
+              handleTrack(e);
+            }
+          }}
+          disabled={trackingState}
+          title={appliedState ? "Applied! Click to unmark" : "Click to mark as applied"}
         >
-          {tracked ? (
-            <><Check size={16} /> Tracked</>
+          {appliedState ? (
+            <><Check size={16} /> Applied</>
           ) : (
-            <><Bookmark size={16} /> {tracking ? 'Tracking…' : 'Track'}</>
+            <><Bookmark size={16} /> {trackingState ? 'Saving…' : 'Apply'}</>
           )}
         </button>
 

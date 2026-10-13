@@ -236,7 +236,9 @@ export default function Dashboard({ theme, onToggleTheme }) {
                           <div className="status-step-circle">
                             {isChecked && <CheckCircle2 size={14} />}
                           </div>
-                          <span className="status-step-label">{stage.label}</span>
+                          <span className="status-step-label">
+                            {isChecked ? `✓ ${stage.label}` : stage.label}
+                          </span>
                         </div>
                         {showConnector && (
                           <div className={`status-step-connector ${isChecked ? 'active' : ''}`} />
