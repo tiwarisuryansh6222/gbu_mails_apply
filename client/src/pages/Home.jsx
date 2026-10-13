@@ -267,7 +267,7 @@ export default function Home({ theme, onToggleTheme }) {
             </p>
           </div>
         ) : (
-          <div style={{ width: '100%', maxWidth: '1200px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+          <div style={{ width: '100%', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
 
             <div style={{ marginTop: '1rem' }}>
               <h2 style={{ fontSize: '2rem', marginBottom: '1.5rem', fontWeight: 800 }}>Global Job Board</h2>
